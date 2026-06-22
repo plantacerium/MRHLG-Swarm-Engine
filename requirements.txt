@@ -1,0 +1,9 @@
+# MHLG Swarm Resonance Engine — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Core: Ollama Python client (tested with 0.6.x)
+ollama>=0.6.0
+
+# Server mode: WebSocket server for Astro frontend connection
+# Only needed when running: python mhlg_cli.py --serve
+websockets>=12.0

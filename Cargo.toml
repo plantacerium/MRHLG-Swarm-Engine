@@ -1,0 +1,20 @@
+[package]
+name = "mhlg-swarm-backend"
+version = "0.3.0"
+edition = "2021"
+
+[[bin]]
+name = "mhlg-swarm-backend"
+path = "src/backend/main.rs"
+
+[dependencies]
+actix-web    = "4.4"
+actix-ws     = "0.2"
+tokio        = { version = "1.32", features = ["full"] }
+serde        = { version = "1.0",  features = ["derive"] }
+serde_json   = "1.0"
+# Async-only reqwest — "blocking" removed, agents use tokio::spawn now
+reqwest      = { version = "0.11", features = ["json", "stream"] }
+futures-util = "0.3"
+glob         = "0.3"
+bytes        = "1"          # Bytes::from_static for heartbeat ping payload

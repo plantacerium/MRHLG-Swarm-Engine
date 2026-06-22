@@ -1,0 +1,17 @@
+{
+  "name": "mhlg-swarm-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev --port 4321",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "^6.4.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

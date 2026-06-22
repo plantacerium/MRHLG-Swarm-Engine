@@ -1,0 +1,99 @@
+---
+// Layout.astro — Base HTML shell for the MRHLG Swarm Engine
+export interface Props {
+  title?: string;
+}
+const { title = "MRHLG Swarm Engine" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Motor de enjambre dialéctico 3x3: Tesis, Síntesis y Antítesis concurrentes sobre gemma4:e4b." />
+    <meta name="theme-color" content="#0a0a0a" />
+    <title>{title}</title>
+
+    <!-- Google Fonts: JetBrains Mono (UI code) + Inter (prose) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style is:global>
+      /* ── CSS Reset & Base Tokens ─────────────────────────────────────── */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        /* Palette — deep void + bioluminescent green */
+        --bg-void:    #090909;
+        --bg-surface: #111111;
+        --bg-card:    rgba(16, 16, 16, 0.85);
+        --border:     rgba(255,255,255,0.07);
+        --border-hover: rgba(16, 185, 129, 0.35);
+
+        --accent:        #10b981;   /* emerald-500   */
+        --accent-glow:   #34d399;   /* emerald-400   */
+        --accent-dim:    rgba(16,185,129,0.12);
+
+        --thesis:     #818cf8;  /* indigo-400  — Row 1 TESIS    */
+        --connect:    #10b981;  /* emerald-500 — Row 2 SÍNTESIS  */
+        --anti:       #f87171;  /* red-400     — Row 3 ANTÍTESIS */
+
+        --text-bright: #f0f0f0;
+        --text-base:   #aaaaaa;
+        --text-dim:    #555555;
+
+        --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        --font-ui:   'Inter', system-ui, sans-serif;
+
+        --radius: 6px;
+        --transition: 200ms ease;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg-void);
+        color: var(--text-base);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.6;
+        /* GPU compositing layer */
+        will-change: transform;
+      }
+
+      /* Subtle scanline texture */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,0.08) 2px,
+          rgba(0,0,0,0.08) 4px
+        );
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar         { width: 4px; }
+      ::-webkit-scrollbar-track   { background: transparent; }
+      ::-webkit-scrollbar-thumb   { background: #222; border-radius: 2px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+      /* Selection highlight */
+      ::selection { background: var(--accent-dim); color: var(--accent-glow); }
+    </style>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,607 @@
+---
+// MosaicGrid.astro — 3×3 Dialectical Swarm UI
+// Human sends ONE prompt → 9 AI agents respond concurrently via WebSocket
+---
+
+<div class="shell">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-brand">
+      <span class="brand-dot"></span>
+      <span class="brand-title">MRHLG · Swarm Resonance Engine</span>
+      <span class="brand-sub">gemma4:e4b · 3×3 Dialectical Mosaic</span>
+    </div>
+
+    <div class="header-status">
+      <span id="ws-indicator" class="ws-dot ws-disconnected" title="WebSocket Status"></span>
+      <span id="ws-label" class="ws-label">Conectando...</span>
+    </div>
+  </header>
+
+  <!-- ── Input Bar ──────────────────────────────────────────────────────── -->
+  <div class="input-bar">
+    <div class="input-icon">▶</div>
+    <input
+      type="text"
+      id="prompt-input"
+      placeholder="Escribe tu prompt para el enjambre MHLG… (Enter o botón para disparar)"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button id="export-btn" class="btn btn-export hidden" title="Exportar prompt + 9 respuestas">
+      💾 Export
+    </button>
+    <button id="clear-btn" class="btn btn-ghost" title="Limpiar celdas">✕ Clear</button>
+    <button id="send-btn" class="btn btn-primary" disabled>
+      <span id="btn-label">DISPARAR ENJAMBRE</span>
+    </button>
+  </div>
+
+  <!-- ── Row Labels ─────────────────────────────────────────────────────── -->
+  <div class="row-labels">
+    <div class="row-label row-thesis">⬆ TESIS — Expansión</div>
+    <div class="row-label row-connect">◈ SÍNTESIS — Conexión</div>
+    <div class="row-label row-anti">⬇ ANTÍTESIS — Restricción</div>
+  </div>
+
+  <!-- ── 3×3 Mosaic Grid ────────────────────────────────────────────────── -->
+  <div class="mosaic" id="mosaic">
+    {[
+      { id: 0, row: "thesis",  label: "F1A · Arquitecto",      sub: "TESIS"     },
+      { id: 1, row: "thesis",  label: "F1B · Pragmático",      sub: "TESIS"     },
+      { id: 2, row: "thesis",  label: "F1C · Explorador",      sub: "TESIS"     },
+      { id: 3, row: "connect", label: "F2A · Traductor",        sub: "SÍNTESIS"  },
+      { id: 4, row: "connect", label: "F2B · Catalizador",      sub: "SÍNTESIS"  },
+      { id: 5, row: "connect", label: "F2C · Orquestador",      sub: "SÍNTESIS"  },
+      { id: 6, row: "anti",    label: "F3A · Crítico Socrático",sub: "ANTÍTESIS" },
+      { id: 7, row: "anti",    label: "F3B · Ciberseguridad",   sub: "ANTÍTESIS" },
+      { id: 8, row: "anti",    label: "F3C · Critico",sub:"ANTÍTESIS" },
+    ].map(cell => (
+      <div class={`cell cell-${cell.row}`} data-cell-id={cell.id} id={`cell-${cell.id}`}>
+        <!-- Cell Header -->
+        <div class="cell-header">
+          <span class="cell-label">{cell.label}</span>
+          <div class="cell-meta">
+            <span class={`cell-badge badge-${cell.row}`}>{cell.sub}</span>
+            <span class="cell-id">#{String(cell.id).padStart(2,"0")}</span>
+          </div>
+        </div>
+        <!-- Typing Indicator -->
+        <div class="cell-typing" id={`typing-${cell.id}`}>
+          <span></span><span></span><span></span>
+        </div>
+        <!-- Content Stream -->
+        <div class="cell-content" id={`content-${cell.id}`}></div>
+      </div>
+    ))}
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <span id="status-msg">Esperando prompt…</span>
+    <span class="footer-sep">·</span>
+    <span id="agent-count">0/9 agentes activos</span>
+    <span class="footer-sep">·</span>
+    <span>ws://127.0.0.1:8080/ws</span>
+  </footer>
+
+</div>
+
+<!-- ── Styles ──────────────────────────────────────────────────────────────── -->
+<style>
+  /* ── Shell Layout ──────────────────────────────────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-columns: 1fr;
+    height: 100vh;
+    width: 100vw;
+    padding: 10px 12px 8px;
+    gap: 8px;
+    background: var(--bg-void);
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+  .brand-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .brand-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* WS Status */
+  .header-status { display: flex; align-items: center; gap: 6px; }
+  .ws-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    transition: background var(--transition), box-shadow var(--transition);
+  }
+  .ws-connected    { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .ws-disconnected { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .ws-connecting   { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+  .ws-label { font-size: 10px; color: var(--text-dim); }
+
+  /* ── Input Bar ───────────────────────────────────────────────────────── */
+  .input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    transition: border-color var(--transition);
+  }
+  .input-bar:focus-within { border-color: var(--accent); }
+  .input-icon { color: var(--accent); font-size: 12px; }
+
+  #prompt-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--accent-glow);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    caret-color: var(--accent);
+  }
+  #prompt-input::placeholder { color: var(--text-dim); font-weight: 400; }
+
+  .btn {
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    padding: 6px 14px;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-glow);
+    box-shadow: 0 0 14px rgba(16,185,129,0.5);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text-base); border-color: var(--text-dim); }
+  .btn-export {
+    background: transparent;
+    color: #a78bfa;
+    border: 1px solid rgba(167,139,250,0.35);
+  }
+  .btn-export:hover {
+    background: rgba(167,139,250,0.1);
+    border-color: #a78bfa;
+    box-shadow: 0 0 10px rgba(167,139,250,0.25);
+    transform: translateY(-1px);
+  }
+  .hidden { display: none !important; }
+
+  /* ── Row Labels ──────────────────────────────────────────────────────── */
+  .row-labels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    padding: 0 1px;
+  }
+  .row-label {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    border-radius: 3px;
+  }
+  .row-thesis  { color: var(--thesis);  background: rgba(129,140,248,0.08); border: 1px solid rgba(129,140,248,0.2); }
+  .row-connect { color: var(--connect); background: rgba(16,185,129,0.08);  border: 1px solid rgba(16,185,129,0.2);  }
+  .row-anti    { color: var(--anti);    background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); }
+
+  /* ── Mosaic Grid ─────────────────────────────────────────────────────── */
+  .mosaic {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 6px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── Cell ────────────────────────────────────────────────────────────── */
+  .cell {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .cell:hover { border-color: rgba(255,255,255,0.12); }
+
+  /* Row-specific accent bar at top */
+  .cell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity var(--transition);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .cell-thesis::before  { background: var(--thesis);  }
+  .cell-connect::before { background: var(--connect); }
+  .cell-anti::before    { background: var(--anti);    }
+  .cell.active::before  { opacity: 1; }
+  .cell.active { box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+  .cell-thesis.active  { border-color: rgba(129,140,248,0.3); }
+  .cell-connect.active { border-color: rgba(16,185,129,0.3);  }
+  .cell-anti.active    { border-color: rgba(248,113,113,0.3); }
+
+  /* Cell Header */
+  .cell-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .cell-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-bright);
+  }
+  .cell-meta { display: flex; align-items: center; gap: 6px; }
+  .cell-badge {
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .badge-thesis  { color: var(--thesis);  background: rgba(129,140,248,0.12); }
+  .badge-connect { color: var(--connect); background: rgba(16,185,129,0.12);  }
+  .badge-anti    { color: var(--anti);    background: rgba(248,113,113,0.12); }
+  .cell-id { font-size: 8px; color: var(--text-dim); }
+
+  /* Typing Indicator (three bouncing dots) */
+  .cell-typing {
+    display: none;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+  }
+  .cell-typing.visible { display: flex; }
+  .cell-typing span {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: bounce 1s ease-in-out infinite;
+  }
+  .cell-thesis  .cell-typing span { background: var(--thesis); }
+  .cell-connect .cell-typing span { background: var(--connect); }
+  .cell-anti    .cell-typing span { background: var(--anti); }
+  .cell-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .cell-typing span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0);   opacity: 0.4; }
+    50%      { transform: translateY(-4px); opacity: 1;   }
+  }
+
+  /* Cell Content — scrollable text output */
+  .cell-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 8px;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-base);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 0;
+  }
+  .cell-thesis  .cell-content { color: rgba(199,210,254,0.85); }  /* indigo tint   */
+  .cell-connect .cell-content { color: rgba(167,243,208,0.85); }  /* emerald tint  */
+  .cell-anti    .cell-content { color: rgba(254,202,202,0.85); }  /* red tint      */
+
+  /* ── Footer ──────────────────────────────────────────────────────────── */
+  .footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 0 4px;
+  }
+  .footer-sep { color: var(--border); }
+  #agent-count { color: var(--accent); }
+</style>
+
+<!-- ── Client Script ──────────────────────────────────────────────────────── -->
+<script>
+  // ── Constants ──────────────────────────────────────────────────────────────
+  const WS_URL = 'ws://127.0.0.1:8080/ws';
+  const TOTAL_AGENTS = 9;
+
+  // ── DOM refs ───────────────────────────────────────────────────────────────
+  const promptInput  = document.getElementById('prompt-input');
+  const sendBtn      = document.getElementById('send-btn');
+  const clearBtn     = document.getElementById('clear-btn');
+  const btnLabel     = document.getElementById('btn-label');
+  const wsIndicator  = document.getElementById('ws-indicator');
+  const wsLabel      = document.getElementById('ws-label');
+  const statusMsg    = document.getElementById('status-msg');
+  const agentCount   = document.getElementById('agent-count');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let ws           = null;
+  let activeAgents = 0;
+  let isFiring     = false;
+  let currentPrompt   = '';           // stored when swarm is fired, used for export
+  let exportFallback  = null;         // fallback timer — shows Export if not all done arrive
+
+  // ── DOM refs (export button added) ────────────────────────────────────────
+  const exportBtn = document.getElementById('export-btn');
+
+  function showExportBtn() {
+    clearTimeout(exportFallback);
+    exportFallback = null;
+    exportBtn.classList.remove('hidden');
+    // Briefly pulse the button to draw attention
+    exportBtn.style.animation = 'exportPop 0.4s ease';
+    setTimeout(() => { exportBtn.style.animation = ''; }, 400);
+  }
+
+  // ── WebSocket ──────────────────────────────────────────────────────────────
+  function setWsStatus(state) {
+    wsIndicator.className = `ws-dot ws-${state}`;
+    wsLabel.textContent = { connected: 'Conectado', disconnected: 'Desconectado', connecting: 'Conectando…' }[state] ?? state;
+    sendBtn.disabled = state !== 'connected' || isFiring;
+  }
+
+  function connect() {
+    setWsStatus('connecting');
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      setWsStatus('connected');
+      statusMsg.textContent = 'Enjambre listo — escribe tu prompt.';
+    };
+
+    ws.onclose = () => {
+      setWsStatus('disconnected');
+      statusMsg.textContent = 'Conexión cerrada. Reconectando en 3 s…';
+      setTimeout(connect, 3000);
+    };
+
+    ws.onerror = () => {
+      setWsStatus('disconnected');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const { cell_id, token, done } = data;
+
+        const content  = document.getElementById(`content-${cell_id}`);
+        const typing   = document.getElementById(`typing-${cell_id}`);
+        const cell     = document.getElementById(`cell-${cell_id}`);
+
+        if (!content) return;
+
+        if (done) {
+          // Agent finished
+          typing.classList.remove('visible');
+          cell.classList.remove('active');
+          activeAgents = Math.max(0, activeAgents - 1);
+          agentCount.textContent = `${activeAgents}/${TOTAL_AGENTS} agentes activos`;
+
+          if (activeAgents === 0) {
+            isFiring = false;
+            sendBtn.disabled = false;
+            btnLabel.textContent = 'DISPARAR ENJAMBRE';
+            statusMsg.textContent = `Respuesta completa — ${new Date().toLocaleTimeString()}`;
+            showExportBtn();   // all 9 done → reveal Export
+          }
+        } else if (token) {
+          // Append streaming token
+          content.textContent += token;
+
+          // Smart auto-scroll: only if user hasn't scrolled up
+          const nearBottom = content.scrollHeight - content.clientHeight - content.scrollTop < 60;
+          if (nearBottom) content.scrollTop = content.scrollHeight;
+        }
+      } catch (e) {
+        console.error('[MHLG] Packet parse error:', e);
+      }
+    };
+  }
+
+  // ── Fire ───────────────────────────────────────────────────────────────────
+  function fireSwarm() {
+    const text = promptInput.value.trim();
+    if (!text || ws?.readyState !== WebSocket.OPEN || isFiring) return;
+
+    currentPrompt = text;             // store for export
+    exportBtn.classList.add('hidden'); // hide Export until new run completes
+    clearTimeout(exportFallback);
+
+    // Fallback: show Export after 30 s even if some done packets never arrived
+    exportFallback = setTimeout(() => {
+      if (isFiring || currentPrompt) showExportBtn();
+    }, 30_000);
+
+    // Clear all cells
+    clearCells();
+
+    // Mark all cells active
+    for (let i = 0; i < TOTAL_AGENTS; i++) {
+      document.getElementById(`cell-${i}`)?.classList.add('active');
+      document.getElementById(`typing-${i}`)?.classList.add('visible');
+    }
+
+    activeAgents = TOTAL_AGENTS;
+    isFiring = true;
+    sendBtn.disabled = true;
+    btnLabel.textContent = 'PROCESANDO…';
+    agentCount.textContent = `${TOTAL_AGENTS}/${TOTAL_AGENTS} agentes activos`;
+    statusMsg.textContent = `Prompt enviado: "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`;
+
+    ws.send(JSON.stringify({ prompt: text }));
+  }
+
+  // ── Clear ──────────────────────────────────────────────────────────────────
+  function clearCells() {
+    for (let i = 0; i < TOTAL_AGENTS; i++) {
+      const c = document.getElementById(`content-${i}`);
+      const t = document.getElementById(`typing-${i}`);
+      const cell = document.getElementById(`cell-${i}`);
+      if (c) c.textContent = '';
+      if (t) t.classList.remove('visible');
+      if (cell) cell.classList.remove('active');
+    }
+    activeAgents = 0;
+    agentCount.textContent = `0/${TOTAL_AGENTS} agentes activos`;
+    statusMsg.textContent = 'Celdas limpias — listo.';
+  }
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+  // Agent metadata mirrors SYSTEM_DIRECTIVES in main.rs / AGENTS in mhlg_cli.py
+  const AGENT_META = [
+    { label: 'F1A: Arquitecto',         row: 'TESIS'     },
+    { label: 'F1B: Pragmático',         row: 'TESIS'     },
+    { label: 'F1C: Explorador',         row: 'TESIS'     },
+    { label: 'F2A: Traductor',          row: 'SÍNTESIS'  },
+    { label: 'F2B: Catalizador',        row: 'SÍNTESIS'  },
+    { label: 'F2C: Orquestador',        row: 'SÍNTESIS'  },
+    { label: 'F3A: Crítico Socrático',  row: 'ANTÍTESIS' },
+    { label: 'F3B: Ciberseguro',        row: 'ANTÍTESIS' },
+    { label: 'F3C: Critico', row: 'ANTÍTESIS' },
+  ];
+
+  function exportSession() {
+    const ts  = new Date().toISOString();
+    const slug = ts.replace(/[:.]/g, '-').slice(0, 19);
+
+    // Collect cell content from DOM
+    const agents = AGENT_META.map((meta, i) => ({
+      cell_id:  i,
+      label:    meta.label,
+      row:      meta.row,
+      response: document.getElementById(`content-${i}`)?.textContent ?? '',
+    }));
+
+    // ── JSON ──────────────────────────────────────────────────────────────────
+    const jsonDoc = {
+      timestamp:  ts,
+      source:     'browser',
+      prompt:     currentPrompt,
+      agents,
+    };
+    downloadBlob(
+      `mhlg_${slug}.json`,
+      JSON.stringify(jsonDoc, null, 2),
+      'application/json'
+    );
+
+    // ── Markdown ──────────────────────────────────────────────────────────────
+    const sections = [
+      { title: '🔺 TESIS — Expansión',      ids: [0,1,2] },
+      { title: '🔀 SÍNTESIS — Conexión',     ids: [3,4,5] },
+      { title: '🔻 ANTÍTESIS — Restricción', ids: [6,7,8] },
+    ];
+    let md = `# 🧬 MHLG Swarm Export\n\n`;
+    md += `| Campo | Valor |\n|---|---|\n`;
+    md += `| Fecha | \`${ts}\` |\n`;
+    md += `| Fuente | \`browser\` |\n\n`;
+    md += `## 💬 Prompt\n\n`;
+    currentPrompt.split('\n').forEach(l => { md += `> ${l}\n`; });
+    md += `\n---\n\n`;
+    sections.forEach(({ title, ids }) => {
+      md += `## ${title}\n\n`;
+      ids.forEach(i => {
+        md += `### ${agents[i].label}\n\n${agents[i].response || '_Sin respuesta_'}\n\n`;
+      });
+      md += `---\n\n`;
+    });
+    downloadBlob(`mhlg_${slug}.md`, md, 'text/markdown');
+  }
+
+  function downloadBlob(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Event Listeners ────────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', fireSwarm);
+  exportBtn.addEventListener('click', exportSession);
+  clearBtn.addEventListener('click', () => {
+    if (!isFiring) { clearCells(); exportBtn.classList.add('hidden'); }
+  });
+  promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') fireSwarm();
+  });
+
+  // Enable send button when user types
+  promptInput.addEventListener('input', () => {
+    if (!isFiring && ws?.readyState === WebSocket.OPEN) {
+      sendBtn.disabled = promptInput.value.trim().length === 0;
+    }
+  });
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  connect();
+</script>
