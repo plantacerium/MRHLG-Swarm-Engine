@@ -4,6 +4,7 @@
 > **One Human Gamer prompt → 9 concurrent AI responses** arranged in a
 > Thesis / Synthesis / Antithesis dialectical grid, streaming in real-time.
 
+![MRHLG_Swarm_Agents_Engine](./assets/MRHLG_Swarm_Agents_Engine.JPG)
 ---
 
 ## 1. Cognitive Philosophy
