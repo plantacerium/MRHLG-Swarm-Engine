@@ -131,7 +131,3 @@ into each agent's system prompt as a **semantic anchor**.
 | `python mhlg_cli.py --serve` | **Server mode**: Python WebSocket server at `ws://127.0.0.1:8080/ws` — Astro connects to it as an alternative to the Rust backend |
 | `python mhlg_cli.py --model llama3.2` | Use a different Ollama model |
 | `python process.py --repo-path ./` | Specify custom JSON source path |
-
-> ⚠️ **Name Collision Warning**: The CLI script is named `mhlg_cli.py`, **not** `ollama.py`.
-> If it were named `ollama.py`, Python would shadow the installed `ollama` package with the local file,
-> causing `AttributeError: module 'ollama' has no attribute 'show'`.
